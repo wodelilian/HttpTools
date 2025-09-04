@@ -113,6 +113,10 @@ public class TianruiLvpanyunFileUpload {
             }
         }
         
+        // 构建并添加shell访问地址信息
+        String shellUrl = baseUrl + "/" + filename;
+        response.append("shell访问地址: " + shellUrl + "\n");
+        
         // 返回请求详情和响应详情
         return "请求详情:\n" + requestDetails.toString() + "\n响应详情:\n" + response.toString();
     }
