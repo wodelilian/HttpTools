@@ -228,21 +228,13 @@ public String getUrl() {
     private void sendRequest() {
         // 触发POC测试
         if (pocTestPanel != null && !"不使用".equals(pocTestPanel.getSelectedPocType())) {
-            // 如果POC类型不为"不使用"，则只发送POC请求，不发送主请求
+            // 如果命令执行POC类型不为"不使用"，则只发送POC请求，不发送主请求
             pocTestPanel.sendRCEPoC();
             return;
         }
         
-        // 如果命令执行POC类型为"不使用"，且文件上传POC类型为"Crocus系统RepairRecord.do文件上传"，则发送文件上传POC请求
-        if (pocTestPanel != null && "不使用".equals(pocTestPanel.getSelectedPocType()) && 
-            fileUploadPOCPanel != null && "Crocus系统RepairRecord.do文件上传".equals(fileUploadPOCPanel.getSelectedPocType())) {
-            fileUploadPOCPanel.sendFileUploadPoC();
-            return;
-        }
-        
-        // 如果命令执行POC类型为"不使用"，且文件上传POC类型为"天锐绿盘云文档安全管理uploadFolder存在文件上传"，则发送对应的POC请求
-        if (pocTestPanel != null && "不使用".equals(pocTestPanel.getSelectedPocType()) && 
-            fileUploadPOCPanel != null && "天锐绿盘云文档安全管理uploadFolder存在文件上传".equals(fileUploadPOCPanel.getSelectedPocType())) {
+        // 如果文件上传POC类型不为"不使用"，则发送文件上传POC请求
+        if (fileUploadPOCPanel != null && !"不使用".equals(fileUploadPOCPanel.getSelectedPocType())) {
             fileUploadPOCPanel.sendFileUploadPoC();
             return;
         }

@@ -13,8 +13,6 @@ public class BlankPanel extends JPanel {
     private JTextField customHeaderValue;
 
     public BlankPanel() {
-        // 设置系统属性以确保使用UTF-8编码
-        System.setProperty("file.encoding", "UTF-8");
         initComponents();
     }
     private void initComponents() {

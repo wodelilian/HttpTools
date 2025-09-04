@@ -47,8 +47,6 @@ public class POCTestPanel extends JPanel {
         // 初始化POC类型映射
         pocTypeMap = new HashMap<>();
         pocTypeMap.put("不使用", "");
-        pocTypeMap.put("POC1", "");
-        pocTypeMap.put("POC2", "");
         pocTypeMap.put("国威HB1910数字程控电话交换机RCE", "命令执行");
 
         // 创建顶部面板 - 使用CardLayout来管理不同POC类型的输入区域
@@ -69,7 +67,7 @@ public class POCTestPanel extends JPanel {
         gbc.gridy = 0;
         gbc.gridwidth = 1;
         gbc.weightx = 0;
-        pocTypeComboBox = new JComboBox<>(new String[]{"不使用", "POC1", "POC2", "国威HB1910数字程控电话交换机RCE"});
+        pocTypeComboBox = new JComboBox<>(new String[]{"不使用", "国威HB1910数字程控电话交换机RCE"});
         controlPanel.add(pocTypeComboBox, gbc);
         
         // 添加事件监听器以根据POC类型显示/隐藏命令输入框
@@ -343,19 +341,25 @@ public class POCTestPanel extends JPanel {
     private void sendSingleRequest(String baseUrl, String selectedPoc, HttpRequestGUI gui) {
         try {
             String response = sendSingleRequestAndGetResponse(baseUrl, selectedPoc, gui);
-            SwingUtilities.invokeLater(() -> {
-                responseArea.append(response);
-            });
+            if (!stopRequested) {
+                SwingUtilities.invokeLater(() -> {
+                    responseArea.append(response);
+                });
+            }
         } catch (Exception e) {
-            SwingUtilities.invokeLater(() -> {
-                responseArea.append("请求失败: " + e.getMessage());
-            });
+            if (!stopRequested) {
+                SwingUtilities.invokeLater(() -> {
+                    responseArea.append("请求失败: " + e.getMessage());
+                });
+            }
         } finally {
             // 请求完成后禁用停止按钮
-            SwingUtilities.invokeLater(() -> {
-                gui.setStopButtonEnabled(false);
-                responseArea.append("\n所有请求已结束\n");
-            });
+            if (!stopRequested) {
+                SwingUtilities.invokeLater(() -> {
+                    gui.setStopButtonEnabled(false);
+                    responseArea.append("\n所有请求已结束\n");
+                });
+            }
         }
     }
     
@@ -377,36 +381,26 @@ public class POCTestPanel extends JPanel {
         String requestMethod = "GET";
         
         // 根据不同的POC类型设置不同的请求URL和参数
-        switch (selectedPoc) {
-            case "POC1":
-                requestUrl = baseUrl + "/poc1/path";
-                break;
-            case "POC2":
-                requestUrl = baseUrl + "/poc2/path";
-                break;
-            case "国威HB1910数字程控电话交换机RCE":
-                String command = commandField.getText();
-                if (command == null || command.isEmpty()) {
-                    command = "id"; // 默认命令
-                }
-                try {
-                    String result = com.httprequest.gui.POC.GuoweiHB1910RCE.sendRCEAndGetResponse(baseUrl, command);
-                    SwingUtilities.invokeLater(() -> {
-                        responseArea.append(result);
-                    });
-                } catch (Exception e) {
-                    SwingUtilities.invokeLater(() -> {
-                        responseArea.append("请求失败: " + e.getMessage());
-                    });
-                }
-                // 确保只发送一条请求，不执行其他逻辑
-                break;
-
-            default:
-                // 对于未知的POC类型，使用默认URL
-                requestUrl = baseUrl;
-                break;
+        if ("国威HB1910数字程控电话交换机RCE".equals(selectedPoc)) {
+            String command = commandField.getText();
+            if (command == null || command.isEmpty()) {
+                command = "id"; // 默认命令
+            }
+            try {
+                String result = com.httprequest.gui.POC.GuoweiHB1910RCE.sendRCEAndGetResponse(baseUrl, command);
+                SwingUtilities.invokeLater(() -> {
+                    responseArea.append(result);
+                });
+            } catch (Exception e) {
+                SwingUtilities.invokeLater(() -> {
+                    responseArea.append("请求失败: " + e.getMessage());
+                });
+            }
+            // 确保只发送一条请求，不执行其他逻辑
+            return "";
         }
+        // 对于未知的POC类型或"不使用"，使用默认URL
+        requestUrl = baseUrl;
         
         URL url = new URL(requestUrl);
         

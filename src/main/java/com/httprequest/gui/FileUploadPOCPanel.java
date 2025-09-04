@@ -61,7 +61,7 @@ public class FileUploadPOCPanel extends JPanel {
         gbc.gridy = 0;
         gbc.gridwidth = 1;
         gbc.weightx = 0;
-        pocTypeComboBox = new JComboBox<>(new String[]{"不使用", "POC1", "POC2", "Crocus系统RepairRecord.do文件上传", "天锐绿盘云文档安全管理uploadFolder存在文件上传"});
+        pocTypeComboBox = new JComboBox<>(new String[]{"不使用", "Crocus系统RepairRecord.do文件上传", "天锐绿盘云文档安全管理uploadFolder存在文件上传"});
         topPanel.add(pocTypeComboBox, gbc);
 
         // Shell内容输入区域
@@ -505,40 +505,6 @@ public class FileUploadPOCPanel extends JPanel {
                         }
                         throw e; // 重新抛出异常以便上层处理
                     }
-                } else if ("POC1".equals(selectedPocType)) {
-                    // 检查是否已请求停止
-                    if (stopRequested) {
-                        final String cancelledResult = "URL: " + baseUrl + "\n请求被取消\n\n----------------------------------------\n\n";
-                        SwingUtilities.invokeLater(() -> {
-                            responseArea.append(cancelledResult);
-                        });
-                        return;
-                    }
-                    
-                    // POC1的实现逻辑
-                    final String poc1Result = "POC1 测试结果: " + baseUrl + "\n\n----------------------------------------\n\n";
-                    if (!stopRequested) {
-                        SwingUtilities.invokeLater(() -> {
-                            responseArea.append(poc1Result);
-                        });
-                    }
-                } else if ("POC2".equals(selectedPocType)) {
-                    // 检查是否已请求停止
-                    if (stopRequested) {
-                        final String cancelledResult = "URL: " + baseUrl + "\n请求被取消\n\n----------------------------------------\n\n";
-                        SwingUtilities.invokeLater(() -> {
-                            responseArea.append(cancelledResult);
-                        });
-                        return;
-                    }
-                    
-                    // POC2的实现逻辑
-                    final String poc2Result = "POC2 测试结果: " + baseUrl + "\n\n----------------------------------------\n\n";
-                    if (!stopRequested) {
-                        SwingUtilities.invokeLater(() -> {
-                            responseArea.append(poc2Result);
-                        });
-                    }
                 } else if ("天锐绿盘云文档安全管理uploadFolder存在文件上传".equals(selectedPocType)) {
                     try {
                         // 检查是否已请求停止
@@ -680,31 +646,22 @@ public class FileUploadPOCPanel extends JPanel {
     
     // 发送单个请求并返回响应
     private String sendSingleRequestAndGetResponse(String baseUrl, HttpRequestGUI gui) throws Exception {
+        // 首先检查是否已请求停止
+        if (stopRequested) {
+            return "URL: " + baseUrl + "\n请求被取消\n\n----------------------------------------\n\n";
+        }
+        
         try {
-            // 首先检查是否已请求停止
-            if (stopRequested) {
-                return "URL: " + baseUrl + "\n请求被取消\n\n----------------------------------------\n\n";
-            }
-            
             // 获取用户在下拉列表中选择的POC类型
             String selectedPocType = getSelectedPocType();
             // 获取用户输入的Shell内容
             String shellContent = shellContentArea.getText();
             
-            String result = "";
             // 根据选择的POC类型执行不同的操作
             if ("Crocus系统RepairRecord.do文件上传".equals(selectedPocType)) {
                 // 对Shell内容进行Base64编码
                 String base64EncodedShell = Base64.getEncoder().encodeToString(shellContent.getBytes("UTF-8"));
-                result = com.httprequest.gui.POC.CrocusRepairRecordUpload.sendFileUploadRequest(baseUrl, base64EncodedShell);
-            } else if ("POC1".equals(selectedPocType)) {
-                // 这里是POC1的实现逻辑
-                result = "POC1 测试结果: " + baseUrl + "\n";
-                // 实际项目中应该替换为真实的POC1实现代码
-            } else if ("POC2".equals(selectedPocType)) {
-                // 这里是POC2的实现逻辑
-                result = "POC2 测试结果: " + baseUrl + "\n";
-                // 实际项目中应该替换为真实的POC2实现代码
+                return com.httprequest.gui.POC.CrocusRepairRecordUpload.sendFileUploadRequest(baseUrl, base64EncodedShell);
             } else if ("天锐绿盘云文档安全管理uploadFolder存在文件上传".equals(selectedPocType)) {
                 // 检查是否已请求停止
                 if (stopRequested) {
@@ -721,10 +678,10 @@ public class FileUploadPOCPanel extends JPanel {
                 }
                 
                 // 调用天锐绿盘云文档安全管理uploadFolder文件上传POC，不进行base64编码
-                result = com.httprequest.gui.POC.TianruiLvpanyunFileUpload.sendFileUploadRequest(baseUrl, shellContent, filename);
+                return com.httprequest.gui.POC.TianruiLvpanyunFileUpload.sendFileUploadRequest(baseUrl, shellContent, filename);
             }
             
-            return result;
+            return "";
         } catch (Exception e) {
             return "请求失败: " + e.getMessage();
         }
