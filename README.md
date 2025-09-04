@@ -16,7 +16,7 @@
 - 可配置HTTP代理服务器
 - 支持代理认证
 
-### POC测试功能
+### 命令执行POC测试功能
 - 支持国威HB1910数字程控电话交换机RCE漏洞测试
 - 支持命令执行和结果查看
 - 可配置线程数进行并发测试
@@ -37,14 +37,14 @@ Java/
 │   └── main/java/com/httprequest/gui/ # 主要源码
 │       ├── Main.java                  # 程序入口点
 │       ├── HttpRequestGUI.java        # 主界面类
-│       ├── POCTestPanel.java          # POC测试面板
+│       ├── POCTestPanel.java          # 命令执行POC测试面板
 │       ├── FileUploadPOCPanel.java    # 文件上传POC面板
 │       ├── Utils.java                 # 工具类
 │       ├── POC/                       # POC实现类目录
 │       │   ├── GuoweiHB1910RCE.java               # 国威HB1910 RCE漏洞POC
 │       │   ├── TianruiLvpanyunFileUpload.java     # 天锐绿盘云文件上传POC
 │       │   └── CrocusRepairRecordUpload.java      # Crocus系统文件上传POC
-│       └── blank/                     # 空白面板目录
+│       └── blank/                     # HTTP请求头编辑面板类目录
 ├── .gitignore                         # Git忽略配置
 ├── README.md                          # 项目说明文档
 ├── compile.sh                         # 编译脚本
@@ -70,8 +70,8 @@ Java/
 - 实现请求发送逻辑和响应结果展示
 - 初始化SSL上下文以支持HTTPS连接
 
-### POCTestPanel.java
-POC测试面板，主要实现命令执行漏洞测试：
+### 命令执行POCTestPanel.java
+命令执行POC测试面板，主要实现命令执行漏洞测试：
 - 支持选择国威HB1910数字程控电话交换机RCE漏洞测试
 - 提供命令输入框和线程数配置
 - 实现多线程并发测试
@@ -109,7 +109,7 @@ POC测试面板，主要实现命令执行漏洞测试：
 #### CrocusRepairRecordUpload.java
 实现Crocus系统RepairRecord.do文件上传功能：
 - 构建JSON格式的文件上传请求
-- 处理base64编码的图片内容
+- 处理base64编码的shell内容
 - 处理HTTPS连接的SSL证书信任
 - 返回请求响应结果
 
