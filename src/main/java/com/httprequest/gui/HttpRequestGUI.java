@@ -11,13 +11,10 @@ import java.io.InputStreamReader;
 import java.io.OutputStream;
 import java.net.HttpURLConnection;
 import java.net.URL;
-import javax.net.ssl.HostnameVerifier;
 import javax.net.ssl.HttpsURLConnection;
-import javax.net.ssl.SSLContext;
 import javax.net.ssl.SSLSocketFactory;
-import javax.net.ssl.TrustManager;
-import javax.net.ssl.X509TrustManager;
-import java.security.cert.X509Certificate;
+import javax.net.ssl.HostnameVerifier;
+import javax.net.ssl.SSLContext;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.CountDownLatch;
@@ -25,6 +22,7 @@ import java.io.File;
 import java.io.FileReader;
 import java.util.ArrayList;
 import java.util.List;
+
 
 public class HttpRequestGUI extends JFrame {
     private JComboBox<String> methodComboBox;
@@ -38,6 +36,7 @@ public class HttpRequestGUI extends JFrame {
     private JButton stopButton;
     private BlankPanel blankPanel;
     private POCTestPanel pocTestPanel;
+    private FileUploadPOCPanel fileUploadPOCPanel;
 
 
     public HttpRequestGUI() {
@@ -170,7 +169,11 @@ public class HttpRequestGUI extends JFrame {
         // 添加面板到标签页
         tabbedPane.addTab("请求详情", requestDetailsPanel);
         tabbedPane.addTab("请求头编辑", blankPanel);
-        tabbedPane.addTab("POC测试", pocTestPanel);
+        tabbedPane.addTab("命令执行POC测试", pocTestPanel);
+        
+        // 创建文件上传POC测试面板
+        fileUploadPOCPanel = new FileUploadPOCPanel();
+        tabbedPane.addTab("文件上传POC测试", fileUploadPOCPanel);
 
         
         // 将标签页添加到主面板
@@ -203,14 +206,14 @@ public String getUrl() {
 }
 
 // 提供公共方法设置停止按钮状态
-public void setStopButtonEnabled(boolean enabled) {
-    stopButton.setEnabled(enabled);
-}
+    public void setStopButtonEnabled(boolean enabled) {
+        stopButton.setEnabled(enabled);
+    }
 
-// 提供公共方法获取ProxySettings
-public ProxySettings getProxySettings() {
-    return proxySettings;
-}
+    // 提供公共方法获取ProxySettings
+    public ProxySettings getProxySettings() {
+        return proxySettings;
+    }
 
     private void updateRequestBodyVisibility() {
         // 始终显示请求体
@@ -227,6 +230,20 @@ public ProxySettings getProxySettings() {
         if (pocTestPanel != null && !"不使用".equals(pocTestPanel.getSelectedPocType())) {
             // 如果POC类型不为"不使用"，则只发送POC请求，不发送主请求
             pocTestPanel.sendRCEPoC();
+            return;
+        }
+        
+        // 如果命令执行POC类型为"不使用"，且文件上传POC类型为"Crocus系统RepairRecord.do文件上传"，则发送文件上传POC请求
+        if (pocTestPanel != null && "不使用".equals(pocTestPanel.getSelectedPocType()) && 
+            fileUploadPOCPanel != null && "Crocus系统RepairRecord.do文件上传".equals(fileUploadPOCPanel.getSelectedPocType())) {
+            fileUploadPOCPanel.sendFileUploadPoC();
+            return;
+        }
+        
+        // 如果命令执行POC类型为"不使用"，且文件上传POC类型为"天锐绿盘云文档安全管理uploadFolder存在文件上传"，则发送对应的POC请求
+        if (pocTestPanel != null && "不使用".equals(pocTestPanel.getSelectedPocType()) && 
+            fileUploadPOCPanel != null && "天锐绿盘云文档安全管理uploadFolder存在文件上传".equals(fileUploadPOCPanel.getSelectedPocType())) {
+            fileUploadPOCPanel.sendFileUploadPoC();
             return;
         }
         
@@ -438,7 +455,7 @@ private SSLSocketFactory sslSocketFactory;
 private HostnameVerifier hostnameVerifier;
 
 // 停止所有请求
-private void stopAllRequests() {
+    private void stopAllRequests() {
         if (currentExecutor != null && !currentExecutor.isShutdown()) {
             currentExecutor.shutdownNow();
             SwingUtilities.invokeLater(() -> {
@@ -451,30 +468,21 @@ private void stopAllRequests() {
         if (pocTestPanel != null) {
             pocTestPanel.stopRequests();
         }
+        
+        // 停止FileUploadPOCPanel中的请求
+        if (fileUploadPOCPanel != null) {
+            fileUploadPOCPanel.stopRequests();
+        }
     }
 
     private void initTrustAllSSLContext() {
     try {
-        // 创建一个信任所有证书的TrustManager
-        TrustManager[] trustAllCerts = new TrustManager[]{
-            new X509TrustManager() {
-                public X509Certificate[] getAcceptedIssuers() {
-                    return null;
-                }
-                public void checkClientTrusted(X509Certificate[] certs, String authType) {
-                }
-                public void checkServerTrusted(X509Certificate[] certs, String authType) {
-                }
-            }
-        };
-
-        // 初始化SSL上下文
-        SSLContext sslContext = SSLContext.getInstance("TLS");
-        sslContext.init(null, trustAllCerts, new java.security.SecureRandom());
+        // 使用Utils工具类创建SSL上下文
+        SSLContext sslContext = Utils.createAllTrustingSSLContext();
         sslSocketFactory = sslContext.getSocketFactory();
 
-        // 创建一个信任所有主机名的HostnameVerifier
-        hostnameVerifier = (hostname, session) -> true;
+        // 使用Utils工具类创建主机名校验器
+        hostnameVerifier = Utils.createAllTrustingHostnameVerifier();
     } catch (Exception e) {
         e.printStackTrace();
     }

